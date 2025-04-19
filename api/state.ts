@@ -1,6 +1,11 @@
-import { Circle, Vector } from "../common/data-types/shapes.ts";
-import { BriefingBundle, BriefingName, ChessBoard, ChessPiece, ChessRow, ChesswarId, CommandAction, PlayerRole, TeamName } from "../common/data-types/types-base.ts";
-import { MovementState } from "../common/data-types/types-server.ts";
+import { ChesswarId, MovementState, PlayerAction, PlayerRole, TeamName, Victory } from "../common/data-types/base.ts";
+import { CarryLoad } from "../common/data-types/carryLoad.ts";
+import { ChessBoard } from "../common/data-types/chess.ts";
+import { BriefingBundle, BriefingName } from "../common/data-types/facility.ts";
+import { ServerStats } from "../common/data-types/server.ts";
+import { Circle } from "../common/shapes/Circle.ts";
+import { Vector } from "../common/shapes/Vector.ts";
+import { newBoard } from "./chess.ts";
 
 export interface ServerPlayerPhysics {
 	mass: number,
@@ -12,100 +17,80 @@ export interface ServerPlayer {
 	id: ChesswarId,
 	team: TeamName,
 	role: PlayerRole,
-	commandOption: CommandAction | null,
+	actionOption: PlayerAction,
+	carrying: CarryLoad,
 	movement: MovementState,
-	physics: ServerPlayerPhysics
+	physics: ServerPlayerPhysics,
+	deathCounter: number
 }
 
 type PlayerMap = Map<ChesswarId, ServerPlayer>;
 
 interface Team {
-	playerMap: PlayerMap
-	teamBoard: ChessBoard
-	briefings: BriefingBundle
+	playerMap: PlayerMap,
+	teamBoard: ChessBoard,
+	briefings: BriefingBundle,
+	enemyBriefings: BriefingBundle
 }
 
 interface ServerState {
+	count: number,
+	victory: Victory,
 	realBoard: ChessBoard,
 	allPlayers: PlayerMap,
-	[TeamName.ALPHA]: Team,
-	[TeamName.BRAVO]: Team
+	[TeamName.BLUE]: Team,
+	[TeamName.RED]: Team,
+	stats: ServerStats,
+	newGameCounter: number
 }
 
-const state: ServerState = {
-	realBoard: newBoard(),
-	allPlayers: new Map<ChesswarId, ServerPlayer>(),
-	[TeamName.ALPHA]: {
-		playerMap: new Map<ChesswarId, ServerPlayer>(),
-		teamBoard: newBoard(),
-		briefings: {
-			[BriefingName.ONE]: null,
-			[BriefingName.TWO]: null,
-			[BriefingName.THREE]: null
-		}
-	},
-	[TeamName.BRAVO]: {
-		playerMap: new Map<ChesswarId, ServerPlayer>(),
-		teamBoard: newBoard(),
-		briefings: {
-			[BriefingName.ONE]: null,
-			[BriefingName.TWO]: null,
-			[BriefingName.THREE]: null
-		}
-	}
-};
-
-function newBoard(): ChessBoard {
-	const row1: ChessRow = [
-		{team: TeamName.ALPHA, piece: ChessPiece.ROOK},
-		{team: TeamName.ALPHA, piece: ChessPiece.KNIGHT},
-		{team: TeamName.ALPHA, piece: ChessPiece.BISHOP},
-		{team: TeamName.ALPHA, piece: ChessPiece.QUEEN},
-		{team: TeamName.ALPHA, piece: ChessPiece.KING},
-		{team: TeamName.ALPHA, piece: ChessPiece.BISHOP},
-		{team: TeamName.ALPHA, piece: ChessPiece.KNIGHT},
-		{team: TeamName.ALPHA, piece: ChessPiece.ROOK}
-	];
-
-	const row2: ChessRow = [
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN},
-		{team: TeamName.ALPHA, piece: ChessPiece.PAWN}
-	];
-
-	const row3: ChessRow = [null, null, null, null, null, null, null, null];
-	const row4: ChessRow = [null, null, null, null, null, null, null, null];
-	const row5: ChessRow = [null, null, null, null, null, null, null, null];
-	const row6: ChessRow = [null, null, null, null, null, null, null, null];
-
-	const row7: ChessRow = [
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN},
-		{team: TeamName.BRAVO, piece: ChessPiece.PAWN}
-	];
-
-	const row8: ChessRow = [
-		{team: TeamName.BRAVO, piece: ChessPiece.ROOK},
-		{team: TeamName.BRAVO, piece: ChessPiece.KNIGHT},
-		{team: TeamName.BRAVO, piece: ChessPiece.BISHOP},
-		{team: TeamName.BRAVO, piece: ChessPiece.QUEEN},
-		{team: TeamName.BRAVO, piece: ChessPiece.KING},
-		{team: TeamName.BRAVO, piece: ChessPiece.BISHOP},
-		{team: TeamName.BRAVO, piece: ChessPiece.KNIGHT},
-		{team: TeamName.BRAVO, piece: ChessPiece.ROOK}
-	];
-
-	return [row1, row2, row3, row4, row5, row6, row7, row8];
+function newState(): ServerState {
+	return {
+		count: 0,
+		victory: null,
+		realBoard: newBoard(),
+		allPlayers: new Map<ChesswarId, ServerPlayer>(),
+		[TeamName.BLUE]: {
+			playerMap: new Map<ChesswarId, ServerPlayer>(),
+			teamBoard: newBoard(),
+			briefings: {
+				[BriefingName.ONE]: null,
+				[BriefingName.TWO]: null,
+				[BriefingName.THREE]: null
+			},
+			enemyBriefings: {
+				[BriefingName.ONE]: null,
+				[BriefingName.TWO]: null,
+				[BriefingName.THREE]: null
+			}
+		},
+		[TeamName.RED]: {
+			playerMap: new Map<ChesswarId, ServerPlayer>(),
+			teamBoard: newBoard(),
+			briefings: {
+				[BriefingName.ONE]: null,
+				[BriefingName.TWO]: null,
+				[BriefingName.THREE]: null
+			},
+			enemyBriefings: {
+				[BriefingName.ONE]: null,
+				[BriefingName.TWO]: null,
+				[BriefingName.THREE]: null
+			}
+		},
+		stats: {
+			tickMs: 0
+		},
+		newGameCounter: Infinity
+	};
 }
 
-export default state;
+export function resetState(): void {
+	state = newState();
+}
+
+export function getState(): ServerState {
+	return state;
+}
+
+let state = newState();

@@ -1,8 +1,8 @@
 import { localApiServer } from "../common/settings.ts";
-import game from "./game.ts";
+import { initGame } from "./serverGame.ts";
 import socket from "./socket.ts";
 
-game.init();
+initGame();
 
 const handler = function(req: Request): Response {
 	const {pathname} = new URL(req.url);
@@ -21,6 +21,8 @@ const handler = function(req: Request): Response {
 	socket.newConnection(sock);
 	return response;
 };
+
+console.log(Deno.version);
 
 Deno.serve({
 	port: localApiServer.port,
